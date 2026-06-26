@@ -47,6 +47,11 @@ jobs:
           restore-keys: |
             zarabot-state-
 
+      - name: Validate secrets
+        run: |
+          test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN repository secret" && exit 1)
+          test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID repository secret" && exit 1)
+
       - name: Check stock once
         run: python -m zarabot --products products.txt --once
 
