@@ -2,6 +2,12 @@ name: Zara stock check
 
 on:
   workflow_dispatch:
+    inputs:
+      notify_current:
+        description: "Send a Telegram notification for products that are currently in stock"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "7/5 * * * *"
 
@@ -24,6 +30,7 @@ jobs:
       DATABASE_PATH: data/zarabot.sqlite3
       POLL_INTERVAL_SECONDS: 300
       PLAYWRIGHT_BROWSERS_PATH: "0"
+      NOTIFY_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_current }}
 
     steps:
       - name: Check out repository
@@ -54,7 +61,12 @@ jobs:
           test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID repository secret" && exit 1)
 
       - name: Check stock once
-        run: python -m zarabot --products products.txt --once
+        run: |
+          if [ "$NOTIFY_CURRENT" = "true" ]; then
+            python -m zarabot --products products.txt --once --notify-current
+          else
+            python -m zarabot --products products.txt --once
+          fi
 
       - name: Save stock state
         if: always()
