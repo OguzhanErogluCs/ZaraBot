@@ -53,21 +53,29 @@ IN_STOCK_TEXT_PATTERNS = [
     r"\badd\s+to\s+(?:bag|cart|basket)\b",
 ]
 
+PRODUCT_SECTION_END_MARKERS = [
+    "benzer urunler",
+    "stilinizi tamamlayin",
+    "urun boyutlari",
+    "malzemeler ve bakim",
+    "magazadaki stok durumu",
+    "kargo, degisim ve iadeler",
+]
 
-def detect_stock_status(html: str) -> StockStatus:
+def detect_stock_status(html: str, has_visible_add_to_cart: bool = False) -> StockStatus:
     soup = BeautifulSoup(html, "html.parser")
 
-    schema_status = _status_from_json_ld(soup)
-    if schema_status == StockStatus.IN_STOCK:
-        return StockStatus.IN_STOCK
-
-    if _has_in_stock_control(soup):
+    if has_visible_add_to_cart:
         return StockStatus.IN_STOCK
 
     text = _normalized_text(soup.get_text(" ", strip=True))
-    if _matches_any(text, IN_STOCK_TEXT_PATTERNS):
+    product_text = _primary_product_text(text)
+    if _matches_any(product_text, IN_STOCK_TEXT_PATTERNS):
         return StockStatus.IN_STOCK
+    if _matches_any(product_text, OUT_OF_STOCK_TEXT_PATTERNS):
+        return StockStatus.OUT_OF_STOCK
 
+    schema_status = _status_from_json_ld(soup)
     if schema_status == StockStatus.OUT_OF_STOCK:
         return StockStatus.OUT_OF_STOCK
     if _matches_any(text, OUT_OF_STOCK_TEXT_PATTERNS):
@@ -94,23 +102,13 @@ def extract_title(html: str) -> str | None:
     return None
 
 
-def _has_in_stock_control(soup: BeautifulSoup) -> bool:
-    labels = []
-    for tag in soup.find_all(["button", "a"]):
-        labels.append(tag.get_text(" ", strip=True))
-        for attr in ("aria-label", "title"):
-            value = tag.get(attr)
-            if value:
-                labels.append(str(value))
-
-    for label in labels:
-        normalized = _normalized_text(label)
-        if normalized in {"ekle", "sepete ekle", "sepete ekleyin", "add to bag", "add to cart", "add to basket"}:
-            return True
-        if _matches_any(normalized, IN_STOCK_TEXT_PATTERNS):
-            return True
-
-    return False
+def _primary_product_text(text: str) -> str:
+    end_index = len(text)
+    for marker in PRODUCT_SECTION_END_MARKERS:
+        marker_index = text.find(marker)
+        if marker_index != -1:
+            end_index = min(end_index, marker_index)
+    return text[:end_index]
 
 
 def _status_from_json_ld(soup: BeautifulSoup) -> StockStatus:

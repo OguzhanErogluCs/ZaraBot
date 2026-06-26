@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from collections.abc import Sequence
 
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
@@ -93,12 +94,57 @@ class ZaraWatcher:
         await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         await self._accept_cookies_if_present(page)
         await page.wait_for_timeout(2_000)
+        has_visible_add_to_cart = await self._has_visible_add_to_cart(page)
+        has_available_size = await self._has_available_size(page)
         html = await page.content()
         return ProductSnapshot(
             url=url,
-            status=detect_stock_status(html),
+            status=detect_stock_status(
+                html,
+                has_visible_add_to_cart=has_visible_add_to_cart or has_available_size,
+            ),
             title=extract_title(html),
         )
+
+    async def _has_visible_add_to_cart(self, page: Page) -> bool:
+        labels = [
+            "Sepete ekle",
+            "Sepete ekleyin",
+            "Ekle",
+            "Add to bag",
+            "Add to cart",
+            "Add to basket",
+        ]
+        for label in labels:
+            locator = page.get_by_role("button", name=re.compile(f"^{re.escape(label)}$", re.IGNORECASE)).first
+            try:
+                if await locator.is_visible(timeout=500) and await locator.is_enabled(timeout=500):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    async def _has_available_size(self, page: Page) -> bool:
+        size_label = re.compile(r"^(xxs|xs|s|m|l|xl|xxl|\d{2,3})$", re.IGNORECASE)
+        controls = page.get_by_role("button", name=size_label)
+        count = await controls.count()
+        for index in range(min(count, 30)):
+            control = controls.nth(index)
+            try:
+                label = await control.inner_text(timeout=500)
+                normalized_label = label.strip()
+                if not size_label.match(normalized_label):
+                    continue
+                if await control.is_visible(timeout=500) and await control.is_enabled(timeout=500):
+                    class_name = await control.get_attribute("class") or ""
+                    aria_disabled = await control.get_attribute("aria-disabled")
+                    disabled = await control.get_attribute("disabled")
+                    if aria_disabled == "true" or disabled is not None or "disabled" in class_name.lower():
+                        continue
+                    return True
+            except Exception:
+                continue
+        return False
 
     async def _handle_snapshot(self, snapshot: ProductSnapshot, notify_current: bool = False) -> None:
         previous = self._store.get(snapshot.url)
