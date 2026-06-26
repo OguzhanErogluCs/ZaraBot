@@ -1,25 +1,16 @@
-name: Zara stock check
+name: Zara stock scheduled
 
 on:
+  schedule:
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
-    inputs:
-      notify_current:
-        description: "Send a Telegram notification for products that are currently in stock"
-        required: false
-        default: false
-        type: boolean
-      seed_out_of_stock_url:
-        description: "Optional test URL to mark as out_of_stock before checking"
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
   actions: write
 
 concurrency:
-  group: zara-stock-check
+  group: zara-stock-scheduled
   cancel-in-progress: false
 
 jobs:
@@ -33,8 +24,6 @@ jobs:
       DATABASE_PATH: data/zarabot.sqlite3
       POLL_INTERVAL_SECONDS: 300
       PLAYWRIGHT_BROWSERS_PATH: "0"
-      NOTIFY_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_current }}
-      SEED_OUT_OF_STOCK_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.seed_out_of_stock_url || '' }}
 
     steps:
       - name: Check out repository
@@ -64,17 +53,8 @@ jobs:
           test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN repository secret" && exit 1)
           test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID repository secret" && exit 1)
 
-      - name: Seed out-of-stock state
-        if: ${{ env.SEED_OUT_OF_STOCK_URL != '' }}
-        run: python -m zarabot seed-state --url "$SEED_OUT_OF_STOCK_URL" --status out_of_stock --title "Transition test"
-
       - name: Check stock once
-        run: |
-          if [ "$NOTIFY_CURRENT" = "true" ]; then
-            xvfb-run -a python -m zarabot --products products.txt --once --notify-current --headed --fail-on-unknown
-          else
-            xvfb-run -a python -m zarabot --products products.txt --once --headed --fail-on-unknown
-          fi
+        run: xvfb-run -a python -m zarabot --products products.txt --once --headed --fail-on-unknown
 
       - name: Save stock state
         if: always()
