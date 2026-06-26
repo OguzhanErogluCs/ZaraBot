@@ -1,0 +1,8 @@
+# Test etmek istedigin Zara urun linklerini buraya, satir satir ekle.
+# Ornek:
+# https://www.zara.com/tr/tr/urun-linki-p00000000.html
+
+https://www.zara.com/tr/tr/z1975-kisa-dantel-denim-ceket-p06147059.html?v1=535413790&utm_campaign=productShare&utm_medium=mobile_sharing_iOS&utm_source=red_social_movil
+https://www.zara.com/tr/tr/z1975-denim-ceket-p00108022.html?v1=529514684&utm_campaign=productShare&utm_medium=mobile_sharing_iOS&utm_source=red_social_movil
+https://www.zara.com/tr/tr/altin-dugmeli-ceket-p08784860.html?v1=500300981&utm_campaign=productShare&utm_medium=mobile_sharing_iOS&utm_source=red_social_movil
+https://www.zara.com/tr/tr/z1975-denim-ceket-p07223031.html?v1=502494720&utm_campaign=productShare&utm_medium=mobile_sharing_iOS&utm_source=red_social_movil
