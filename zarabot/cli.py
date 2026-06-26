@@ -25,6 +25,7 @@ def main() -> None:
     parser.add_argument("--headed", action="store_true", help="Open a visible browser window instead of headless mode.")
     parser.add_argument("--browser-channel", help="Playwright browser channel, for example chrome or msedge.")
     parser.add_argument("--browser-executable", help="Full path to Chrome or Edge executable.")
+    parser.add_argument("--fail-on-unknown", action="store_true", help="Exit with an error if any product status is unknown.")
     parser.add_argument(
         "--notify-current",
         action="store_true",
@@ -54,6 +55,7 @@ def main() -> None:
                 headless=not args.headed,
                 browser_channel=args.browser_channel,
                 browser_executable=args.browser_executable,
+                fail_on_unknown=args.fail_on_unknown,
             )
         )
     finally:

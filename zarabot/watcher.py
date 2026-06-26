@@ -17,6 +17,10 @@ from .storage import StateStore
 logger = logging.getLogger(__name__)
 
 
+class UnknownStockStatusError(RuntimeError):
+    pass
+
+
 class ZaraWatcher:
     def __init__(self, store: StateStore, notifier: TelegramNotifier) -> None:
         self._store = store
@@ -32,6 +36,7 @@ class ZaraWatcher:
         headless: bool = True,
         browser_channel: str | None = None,
         browser_executable: str | None = None,
+        fail_on_unknown: bool = False,
     ) -> None:
         async with async_playwright() as playwright:
             launch_options = {
@@ -49,7 +54,11 @@ class ZaraWatcher:
                 while True:
                     run_count += 1
                     logger.info("Starting polling cycle %s", run_count)
-                    await self.check_all(browser, urls, notify_current=notify_current)
+                    snapshots = await self.check_all(browser, urls, notify_current=notify_current)
+                    unknown_urls = [snapshot.url for snapshot in snapshots if snapshot.status == StockStatus.UNKNOWN]
+                    if fail_on_unknown and unknown_urls:
+                        joined_urls = ", ".join(unknown_urls)
+                        raise UnknownStockStatusError(f"Unknown stock status for: {joined_urls}")
                     if once or (max_runs is not None and run_count >= max_runs):
                         logger.info("Stopping after %s polling cycle(s)", run_count)
                         return
@@ -57,7 +66,7 @@ class ZaraWatcher:
             finally:
                 await browser.close()
 
-    async def check_all(self, browser: Browser, urls: Sequence[str], notify_current: bool = False) -> None:
+    async def check_all(self, browser: Browser, urls: Sequence[str], notify_current: bool = False) -> list[ProductSnapshot]:
         page = await browser.new_page(
             locale="tr-TR",
             user_agent=(
@@ -66,16 +75,19 @@ class ZaraWatcher:
                 "Chrome/126.0 Safari/537.36"
             ),
         )
+        snapshots: list[ProductSnapshot] = []
         try:
             for url in urls:
                 try:
                     snapshot = await self._fetch_snapshot(page, url)
+                    snapshots.append(snapshot)
                     await self._handle_snapshot(snapshot, notify_current=notify_current)
-                    logger.info("Checked %s: %s", url, snapshot.status.value)
+                    logger.info("Checked %s: %s%s", url, snapshot.status.value, f" ({snapshot.title})" if snapshot.title else "")
                 except Exception:
                     logger.exception("Could not check %s", url)
         finally:
             await page.close()
+        return snapshots
 
     async def _fetch_snapshot(self, page: Page, url: str) -> ProductSnapshot:
         await page.goto(url, wait_until="domcontentloaded", timeout=60_000)

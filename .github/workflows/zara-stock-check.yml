@@ -63,9 +63,9 @@ jobs:
       - name: Check stock once
         run: |
           if [ "$NOTIFY_CURRENT" = "true" ]; then
-            python -m zarabot --products products.txt --once --notify-current
+            xvfb-run -a python -m zarabot --products products.txt --once --notify-current --headed --fail-on-unknown
           else
-            python -m zarabot --products products.txt --once
+            xvfb-run -a python -m zarabot --products products.txt --once --headed --fail-on-unknown
           fi
 
       - name: Save stock state
