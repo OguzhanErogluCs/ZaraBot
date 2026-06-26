@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from .config import load_settings
+from .detector import StockStatus
 from .notifier import TelegramNotifier
 from .storage import StateStore
 from .watcher import ZaraWatcher
@@ -17,6 +18,14 @@ def main() -> None:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     parser = argparse.ArgumentParser(description="Watch Zara product pages for stock changes.")
+    subparsers = parser.add_subparsers(dest="command")
+
+    seed_parser = subparsers.add_parser("seed-state", help="Seed a product state for transition testing.")
+    seed_parser.add_argument("--url", required=True, help="Product URL to seed.")
+    seed_parser.add_argument("--status", required=True, choices=[status.value for status in StockStatus])
+    seed_parser.add_argument("--title", help="Optional product title.")
+    seed_parser.add_argument("--database", help="SQLite database path. Overrides DATABASE_PATH.")
+
     parser.add_argument("--products", default="products.txt", help="Path to a text file with one product URL per line.")
     parser.add_argument("--interval", type=int, help="Polling interval in seconds. Overrides POLL_INTERVAL_SECONDS.")
     parser.add_argument("--database", help="SQLite database path. Overrides DATABASE_PATH.")
@@ -36,6 +45,16 @@ def main() -> None:
         raise SystemExit("--max-runs must be at least 1.")
 
     settings = load_settings(database_override=args.database, interval_override=args.interval)
+
+    if args.command == "seed-state":
+        store = StateStore(settings.database_path)
+        try:
+            store.upsert(args.url, StockStatus(args.status), args.title)
+            logging.info("Seeded %s as %s", args.url, args.status)
+        finally:
+            store.close()
+        return
+
     urls = load_product_urls(Path(args.products))
     if not urls:
         raise SystemExit(f"No product URLs found in {args.products}.")

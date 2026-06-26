@@ -45,6 +45,8 @@ The repository includes `.github/workflows/zara-stock-check.yml` for scheduled c
 
 The scheduled workflow runs every 5 minutes. It stores `data/zarabot.sqlite3` in the GitHub Actions cache so the next run can detect `out_of_stock` to `in_stock` transitions.
 
+To test the transition notification without waiting for a real restock, run the workflow manually and paste an in-stock product URL into `seed_out_of_stock_url`. The workflow will first mark that URL as `out_of_stock`, then check the page normally. If it is currently in stock, Telegram should receive a stock alert.
+
 ## Notes
 
 - The bot notifies only on an `out_of_stock` to `in_stock` transition.

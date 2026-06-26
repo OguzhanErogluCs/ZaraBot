@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      seed_out_of_stock_url:
+        description: "Optional test URL to mark as out_of_stock before checking"
+        required: false
+        default: ""
+        type: string
   schedule:
     - cron: "7/5 * * * *"
 
@@ -31,6 +36,7 @@ jobs:
       POLL_INTERVAL_SECONDS: 300
       PLAYWRIGHT_BROWSERS_PATH: "0"
       NOTIFY_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_current }}
+      SEED_OUT_OF_STOCK_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.seed_out_of_stock_url || '' }}
 
     steps:
       - name: Check out repository
@@ -59,6 +65,10 @@ jobs:
         run: |
           test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN repository secret" && exit 1)
           test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID repository secret" && exit 1)
+
+      - name: Seed out-of-stock state
+        if: ${{ env.SEED_OUT_OF_STOCK_URL != '' }}
+        run: python -m zarabot seed-state --url "$SEED_OUT_OF_STOCK_URL" --status out_of_stock --title "Transition test"
 
       - name: Check stock once
         run: |
