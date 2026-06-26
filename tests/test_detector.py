@@ -37,6 +37,18 @@ def test_detects_turkish_add_to_basket_text() -> None:
     assert detect_stock_status("<button>Sepete ekle</button>") == StockStatus.IN_STOCK
 
 
+def test_add_to_basket_wins_over_variant_out_of_stock_text() -> None:
+    html = """
+    <main>
+      <h1>Altin dugmeli ceket</h1>
+      <button>Sepete ekle</button>
+      <span>XS stokta yok</span>
+    </main>
+    """
+
+    assert detect_stock_status(html) == StockStatus.IN_STOCK
+
+
 def test_extracts_open_graph_title() -> None:
     html = '<meta property="og:title" content="Keten Gomlek | ZARA Turkiye">'
 

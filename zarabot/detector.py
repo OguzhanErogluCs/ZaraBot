@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 
@@ -57,14 +58,20 @@ def detect_stock_status(html: str) -> StockStatus:
     soup = BeautifulSoup(html, "html.parser")
 
     schema_status = _status_from_json_ld(soup)
-    if schema_status != StockStatus.UNKNOWN:
-        return schema_status
+    if schema_status == StockStatus.IN_STOCK:
+        return StockStatus.IN_STOCK
+
+    if _has_in_stock_control(soup):
+        return StockStatus.IN_STOCK
 
     text = _normalized_text(soup.get_text(" ", strip=True))
-    if _matches_any(text, OUT_OF_STOCK_TEXT_PATTERNS):
-        return StockStatus.OUT_OF_STOCK
     if _matches_any(text, IN_STOCK_TEXT_PATTERNS):
         return StockStatus.IN_STOCK
+
+    if schema_status == StockStatus.OUT_OF_STOCK:
+        return StockStatus.OUT_OF_STOCK
+    if _matches_any(text, OUT_OF_STOCK_TEXT_PATTERNS):
+        return StockStatus.OUT_OF_STOCK
 
     return StockStatus.UNKNOWN
 
@@ -85,6 +92,25 @@ def extract_title(html: str) -> str | None:
         return heading.get_text(" ", strip=True)
 
     return None
+
+
+def _has_in_stock_control(soup: BeautifulSoup) -> bool:
+    labels = []
+    for tag in soup.find_all(["button", "a"]):
+        labels.append(tag.get_text(" ", strip=True))
+        for attr in ("aria-label", "title"):
+            value = tag.get(attr)
+            if value:
+                labels.append(str(value))
+
+    for label in labels:
+        normalized = _normalized_text(label)
+        if normalized in {"ekle", "sepete ekle", "sepete ekleyin", "add to bag", "add to cart", "add to basket"}:
+            return True
+        if _matches_any(normalized, IN_STOCK_TEXT_PATTERNS):
+            return True
+
+    return False
 
 
 def _status_from_json_ld(soup: BeautifulSoup) -> StockStatus:
@@ -132,8 +158,11 @@ def _availability_to_status(value: str) -> StockStatus:
 
 
 def _normalized_text(text: str) -> str:
-    replacements = str.maketrans({"ı": "i", "İ": "i", "ğ": "g", "Ğ": "g", "ü": "u", "Ü": "u", "ş": "s", "Ş": "s", "ö": "o", "Ö": "o", "ç": "c", "Ç": "c"})
-    return re.sub(r"\s+", " ", text.translate(replacements).lower())
+    text = text.replace("ı", "i").replace("İ", "I")
+    without_marks = "".join(
+        char for char in unicodedata.normalize("NFKD", text) if not unicodedata.combining(char)
+    )
+    return re.sub(r"\s+", " ", without_marks.lower())
 
 
 def _matches_any(text: str, patterns: list[str]) -> bool:
