@@ -47,10 +47,11 @@ OUT_OF_STOCK_TEXT_PATTERNS = [
     r"\bnot\s+available\b",
 ]
 
-IN_STOCK_TEXT_PATTERNS = [
-    r"\bsepete\s+ekle\b",
-    r"\bsepet(?:e)?\s+ekleyin\b",
-    r"\badd\s+to\s+(?:bag|cart|basket)\b",
+PRODUCT_SOLD_OUT_TEXT_PATTERNS = [
+    r"\btukendi\b",
+    r"\bout\s+of\s+stock\b",
+    r"\bsold\s+out\b",
+    r"\bnot\s+available\b",
 ]
 
 PRODUCT_SECTION_END_MARKERS = [
@@ -65,20 +66,19 @@ PRODUCT_SECTION_END_MARKERS = [
 def detect_stock_status(html: str, has_visible_add_to_cart: bool = False) -> StockStatus:
     soup = BeautifulSoup(html, "html.parser")
 
+    text = _normalized_text(soup.get_text(" ", strip=True))
+    product_text = _primary_product_text(text)
+    if _matches_any(product_text, PRODUCT_SOLD_OUT_TEXT_PATTERNS):
+        return StockStatus.OUT_OF_STOCK
+
     if has_visible_add_to_cart:
         return StockStatus.IN_STOCK
 
-    text = _normalized_text(soup.get_text(" ", strip=True))
-    product_text = _primary_product_text(text)
-    if _matches_any(product_text, IN_STOCK_TEXT_PATTERNS):
-        return StockStatus.IN_STOCK
     if _matches_any(product_text, OUT_OF_STOCK_TEXT_PATTERNS):
         return StockStatus.OUT_OF_STOCK
 
     schema_status = _status_from_json_ld(soup)
     if schema_status == StockStatus.OUT_OF_STOCK:
-        return StockStatus.OUT_OF_STOCK
-    if _matches_any(text, OUT_OF_STOCK_TEXT_PATTERNS):
         return StockStatus.OUT_OF_STOCK
 
     return StockStatus.UNKNOWN

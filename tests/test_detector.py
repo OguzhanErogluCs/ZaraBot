@@ -64,7 +64,7 @@ def test_schema_in_stock_does_not_win_over_visible_sold_out_text() -> None:
     assert detect_stock_status(html) == StockStatus.OUT_OF_STOCK
 
 
-def test_related_products_sold_out_does_not_override_product_add_to_basket() -> None:
+def test_related_products_sold_out_does_not_create_out_of_stock_status() -> None:
     html = """
     <main>
       <h1>Z1975 Kisa Dantel Denim Ceket</h1>
@@ -73,7 +73,43 @@ def test_related_products_sold_out_does_not_override_product_add_to_basket() -> 
     </main>
     """
 
-    assert detect_stock_status(html) == StockStatus.IN_STOCK
+    assert detect_stock_status(html) == StockStatus.UNKNOWN
+
+
+def test_related_products_sold_out_does_not_override_visible_product_add_to_basket() -> None:
+    html = """
+    <main>
+      <h1>Z1975 Kisa Dantel Denim Ceket</h1>
+      <button>Sepete ekle</button>
+      <section>Benzer ürünler Tükendi</section>
+    </main>
+    """
+
+    assert detect_stock_status(html, has_visible_add_to_cart=True) == StockStatus.IN_STOCK
+
+
+def test_product_sold_out_wins_over_static_add_to_basket_text() -> None:
+    html = """
+    <main>
+      <h1>Z1975 Kisa Dantel Denim Ceket</h1>
+      <button>Sepete ekle</button>
+      <p>Tükendi</p>
+    </main>
+    """
+
+    assert detect_stock_status(html) == StockStatus.OUT_OF_STOCK
+
+
+def test_product_sold_out_wins_over_visible_add_to_basket_signal() -> None:
+    html = """
+    <main>
+      <h1>Z1975 Kisa Dantel Denim Ceket</h1>
+      <button>Sepete ekle</button>
+      <p>Tükendi</p>
+    </main>
+    """
+
+    assert detect_stock_status(html, has_visible_add_to_cart=True) == StockStatus.OUT_OF_STOCK
 
 
 def test_extracts_open_graph_title() -> None:
