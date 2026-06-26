@@ -23,6 +23,7 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       DATABASE_PATH: data/zarabot.sqlite3
       POLL_INTERVAL_SECONDS: 300
+      PLAYWRIGHT_BROWSERS_PATH: "0"
 
     steps:
       - name: Check out repository
