@@ -107,6 +107,18 @@ class ZaraWatcher:
         )
 
     async def _has_visible_add_to_cart(self, page: Page) -> bool:
+        add_to_cart_selectors = [
+            "button.product-detail-cart-buttons__add-to-cart",
+            "button[class*='add-to-cart']",
+        ]
+        for selector in add_to_cart_selectors:
+            locator = page.locator(selector).first
+            try:
+                if await locator.is_visible(timeout=500) and await locator.is_enabled(timeout=500):
+                    return True
+            except Exception:
+                continue
+
         labels = [
             "Sepete ekle",
             "Sepete ekleyin",
@@ -116,7 +128,7 @@ class ZaraWatcher:
             "Add to basket",
         ]
         for label in labels:
-            locator = page.get_by_role("button", name=re.compile(f"^{re.escape(label)}$", re.IGNORECASE)).first
+            locator = page.get_by_role("button", name=re.compile(f"^{re.escape(label)}(?:\\s|$)", re.IGNORECASE)).first
             try:
                 if await locator.is_visible(timeout=500) and await locator.is_enabled(timeout=500):
                     return True
